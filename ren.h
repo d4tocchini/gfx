@@ -273,7 +273,7 @@ void ren_init(void)
     ctx.vg = win_create_vg(ctx.win, VG_VSYNC | VG_ACCEL
         // |VG_TRANSPARENT
         );
-    win_set_size(ctx.win, 720, 720);
+    // win_set_size(ctx.win, 720, 720);
     win_set_pos(ctx.win, WINPOS_CENTER, WINPOS_CENTER);
     win_show(ctx.win);
     // ctx = malloc(sizeof(ren_ctx_t));
@@ -488,7 +488,7 @@ int ren_install_font(const char* name, const char* file)
     // ctx.fonts[0] = idx + 1;
     int id = nvgCreateFont(ctx.vg, name, file);
     if (id == -1) {
-        printf("Could not install \"%s\" font at %s");
+        printf("ren_install_font : Could not install \"%s\" font at %s\n", name, file);
     }
     return id;
 }
@@ -497,13 +497,13 @@ void ren_install_font_defaults(void)
 {
     // ren_install_font("sans", "../nanovg/example/Roboto-Regular.ttf");
 
-    ren_install_font("sans", "../../pkg/@font/Inter-3.13-display/otf/InterDisplay-SemiBold.otf");
+    ren_install_font("sans", "data/font/InterDisplay-SemiBold.otf");
     // ren_install_font("sans", "../../pkg/@font/InputMono/InputMono-Medium.ttf");
     // ren_install_font("sans", "../../pkg/@font/Inconsolata/Inconsolata-Bold.ttf");
     // ren_install_font("sans", "../../pkg/@font/SF/SF-Mono-Semibold.otf");
 
     // ren_install_font("sans", "../../@font/Inter-3.13/hinted/ttf/Inter-Bold.ttf");
-    ren_install_font("icons", "../nanovg/example/entypo.ttf");
+    ren_install_font("icons", "data/font/entypo.ttf");
 }
 
 static char* cpToUTF8(int cp, char* str)

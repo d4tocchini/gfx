@@ -43,6 +43,11 @@ void*   nview_get_layer(void* hnd);
 #ifdef __GFX_IMPLEMENTATION__
 // ============================================================
 
+#ifdef GFX_WASM
+    #include <emscripten/html5.h>
+    // https://emscripten.org/docs/api_reference/html5.h.html#ui
+    // https://github.com/emscripten-core/emscripten/blob/master/tests/test_html5_fullscreen.c
+#endif
 
 void* gfx_create_win(int flags)
 {
@@ -52,10 +57,22 @@ void* gfx_create_win(int flags)
         #endif
         | (WIN_HIDE * ((flags & WIN_SHOW) == 0));
 
+    int win_w;
+    int win_h;
+    // #if GFX_WASM
+    //     double _w,_h;
+    //     emscripten_get_canvas_element_size("#canvas", &_w, &_h);
+    //     win_w = (int)_w;
+    //     win_h = (int)_h;
+    // #else
+        win_w = 512;
+        win_h = 768;
+    // #endif
+
     SDL_Window* win = SDL_CreateWindow(
         DEFAULT_WIN_TITLE,
         WINPOS_CENTER, WINPOS_CENTER,
-        256, 256, flags);
+        win_w, win_h, flags);
 
     #if GFX_GL || GFX_GLES
         if (!win) {
@@ -65,8 +82,7 @@ void* gfx_create_win(int flags)
             win = SDL_CreateWindow(
                 DEFAULT_WIN_TITLE,
                 WINPOS_CENTER, WINPOS_CENTER,
-                256, 256,
-                flags);
+                win_w, win_h, flags);
         }
     #endif
     if (!win)
@@ -139,13 +155,27 @@ void win_destroy(win_t* win)
 
 void win_did_render(win_t* win)
 {
-    #if GFX_GL || GFX_GLES
+    #if GFX_WASM
+        // TODO: is swap window needed on iOS / ES in general, seems slow w/ WASM...
+    #elif GFX_GL || GFX_GLES
         SDL_GL_SwapWindow(win);
     #endif
 }
 
 void win_set_size(void* win, int w, int h) {
     SDL_SetWindowSize((SDL_Window*)win, w, h);
+}
+
+void win_max_size(void* win) {
+    #if GFX_WASM
+        double w = 0;
+        double h = 0;
+        emscripten_get_element_css_size("#html",&w, &h);
+        // printf("win_max_size w=%i, h=%i",(int)w,(int)h);
+        win_set_size(win, (int)w, (int)h);
+    #else
+        SDL_MaximizeWindow((SDL_Window*)win);
+    #endif
 }
 
 void win_set_pos(void* win, int x, int y) {

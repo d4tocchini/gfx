@@ -16,7 +16,7 @@
 #include "nanovg/src/nanovg.h"
 
 #ifdef NANOVG_MTL_IMPLEMENTATION
-    #include "nanovg_mtl/src/nanovg_mtl.m"
+    #include "nanovg_metal/src/nanovg_mtl.h"
 #endif
 
 typedef NVGcolor            color_t;
@@ -92,7 +92,7 @@ void    vg_draw_shadow(vg_t* ctx,
     #include "nanovg/src/nanovg_gl.h"
     #include "nanovg/src/nanovg_gl_utils.h"
 #elif defined(GFX_METAL)
-    #include "nanovg_mtl/src/nanovg_mtl.h"
+    #include "nanovg_metal/src/nanovg_mtl.m"
 #endif
 #include "nanovg/src/nanovg.c"
 

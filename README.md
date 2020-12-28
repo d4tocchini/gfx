@@ -1,5 +1,8 @@
 
 
+Math
+    https://github.com/HandmadeMath/Handmade-Math/blob/master/HandmadeMath.h
+
 NanoVG
     https://github.com/zlgopen/nanovg
     https://github.com/zlgopen/awtk/tree/master/3rd/nanovg

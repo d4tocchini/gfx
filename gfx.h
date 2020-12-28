@@ -25,10 +25,14 @@ TODO:
 #include <stdbool.h>
 #include <stdint.h>
 
-#if defined(GFX_WEBGL1)
+#ifndef GFX_SDL
+    #define GFX_SDL
+#endif
+
+#if defined(GFX_WEBGL1) || GFX_WEBGL == 1
     #define GFX_WASM 1
-    #define GFX_GLES3
-#elif defined(GFX_WEBGL2)
+    #define GFX_GLES2
+#elif defined(GFX_WEBGL2) || GFX_WEBGL == 2
     #define GFX_WASM 1
     #define GFX_GLES3
 // #elif defined(GFX_IOS)
@@ -58,35 +62,35 @@ TODO:
 #endif
 
 #define __GFX_IMPLEMENTATION__
-#if defined(GFX_GL2)
+#if defined(GFX_GL2) || GFX_GL == 2
     #define GFX_GL 2
     #define GFX_GL_MAJOR 2
     #define GFX_GL_MINOR 0
-#elif defined(GFX_GL3)
+#elif defined(GFX_GL3) || GFX_GL == 3
     #define GFX_GL 3
     #define GFX_GL_MAJOR 3
     #define GFX_GL_MINOR 0
-#elif defined(GFX_GL31)
+#elif defined(GFX_GL31) || GFX_GL == 31
     #define GFX_GL 31
     #define GFX_GL_MAJOR 3
     #define GFX_GL_MINOR 1
-#elif defined(GFX_GL32)
+#elif defined(GFX_GL32) || GFX_GL == 32
     #define GFX_GL 32
     #define GFX_GL_MAJOR 3
     #define GFX_GL_MINOR 2
-#elif defined(GFX_GL33)
+#elif defined(GFX_GL33) || GFX_GL == 33
     #define GFX_GL 33
     #define GFX_GL_MAJOR 3
     #define GFX_GL_MINOR 3
-#elif defined(GFX_GLES2)
+#elif defined(GFX_GLES2) || GFX_GLES == 2
     #define GFX_GLES 2
     #define GFX_GLES_MAJOR 2
     #define GFX_GLES_MINOR 0
-#elif defined(GFX_GLES3)
+#elif defined(GFX_GLES3) || GFX_GLES == 3
     #define GFX_GLES 3
     #define GFX_GLES_MAJOR 3
     #define GFX_GLES_MINOR 0
-#elif defined(GFX_GLES31)
+#elif defined(GFX_GLES31) || GFX_GLES == 31
     #define GFX_GLES 31
     #define GFX_GLES_MAJOR 3
     #define GFX_GLES_MINOR 1
