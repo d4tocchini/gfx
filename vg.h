@@ -66,13 +66,18 @@ void    vg_draw_shadow(vg_t* ctx,
         #define vg_create(NIL, flags) nvgCreateGLES2(flags)
         #define vg_destroy(context) nvgDeleteGLES2(context)
     #endif
-    #define vg_create_default(NIL) (vg_create(NULL, vg_flags(false, true, 0)))
+    // TODO: VG_AA
+    #define VG_AA 1
+    #define VG_STENCIL_STROKES 1
+    #define vg_create_default(NIL) (vg_create(NULL, vg_flags(VG_AA, VG_STENCIL_STROKES, 0)))
     #define vg_fb_bind(fb) nvgluBindFramebuffer(fb)
     #define vg_fb_create(ctx, w, h, flags) nvgluCreateFramebuffer(ctx, w, h, flags)
     #define vg_fb_delete(fb) nvgDeleteFramebuffer(fb)
 #elif defined(GFX_METAL)
+    #define VG_AA 1
+    #define VG_STENCIL_STROKES 0
     #define vg_create(layer, flags) nvgCreateMTL((__bridge void*)(layer), (flags))
-    #define vg_create_default(layer) vg_create((layer), (vg_flags(true, false, 3)))
+    #define vg_create_default(layer) vg_create((layer), (vg_flags(VG_AA, VG_STENCIL_STROKES, 3)))
     #define vg_destroy(context) nvgDeleteMTL(context)
     #define vg_fb_bind(fb) mnvgBindFramebuffer(fb)
     #define vg_fb_create(ctx, w, h, flags) mnvgCreateFramebuffer(ctx, w, h, flags)
@@ -80,6 +85,20 @@ void    vg_draw_shadow(vg_t* ctx,
 #endif
 
 
+#define _VG_TRANSFORM_PT_AT(vals, idx, tf) \
+    vals[idx]   = vals[idx]*tf[0] + vals[idx+1]*tf[2] + tf[4]; \
+    vals[idx+1] = vals[idx]*tf[1] + vals[idx+1]*tf[3] + tf[5];
+
+//
+// pathdata
+//
+typedef float* vg_pathdata_t;
+int      vg_pathdata(vg_t* ctx, vg_pathdata_t buf);
+#define _vg_pathdata_parse(commandstring, out) \
+         vg_pathdata_parse_buf(commandstring, strlen(commandstring), out)
+#define  vg_pathdata_parse(commandstring, out) \
+        _vg_pathdata_parse((commandstring),(out))
+int      vg_pathdata_parse_buf(const char* commandstring, int len, vg_pathdata_t* out);
 
 
 // ============================================================
@@ -95,6 +114,19 @@ void    vg_draw_shadow(vg_t* ctx,
     #include "nanovg_metal/src/nanovg_mtl.m"
 #endif
 #include "nanovg/src/nanovg.c"
+
+
+int _vg_grow_commands_if_needed(vg_t* ctx, int nvals) {
+    if (ctx->ncommands+nvals > ctx->ccommands) {
+      float* commands;
+      int ccommands = ctx->ncommands+nvals + ctx->ccommands/2;
+      commands = (float*)realloc(ctx->commands, sizeof(float)*ccommands);
+      if (commands == NULL) return 1;
+      ctx->commands = commands;
+      ctx->ccommands = ccommands;
+    }
+    return 0;
+}
 
 
 // struct NVGLUframebuffer {
@@ -319,6 +351,7 @@ void vg_read_pixels(vg_t* ctx,   // nvgReadPixels
 }
 
 
+
 void vg_img_unpremultalpha(unsigned char* image, const int width, const int height)
 //  nvgUnpremultiplyImageAlpha
 {
@@ -384,7 +417,300 @@ void vg_img_unpremultalpha(unsigned char* image, const int width, const int heig
 }
 
 
+//
+// pathdata
+//
+// #include <stdbool.h>
+//
+#define VG_PATHDATA_HEADER_LEN 2
+/*
+    https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/d
+    " : 34
+    \ \n \t : 32,10,9
+    ,       : 44
+    - . / 0-9 : 45,46,47,48-57
+        A-a : 65-97
+*/
+#define VG_D_NVALS_SHIFT        12
+#define VG_D_NVALS_MASK         0b1111000000000000
+#define VG_CLOSEPATH_NVALS      (1 << VG_D_NVALS_SHIFT)
+#define VG_MOVETO_NVALS         (3 << VG_D_NVALS_SHIFT)
+#define VG_LINETO_NVALS         (3 << VG_D_NVALS_SHIFT)
+#define VG_BEZIERTO_NVALS       (7 << VG_D_NVALS_SHIFT)
+//
+#define VG_D_TYPE_SHIFT         16
+#define _VG_D_MOVETO             ((NVG_MOVETO   << VG_D_TYPE_SHIFT) | VG_MOVETO_NVALS)
+#define _VG_D_LINETO             ((NVG_LINETO   << VG_D_TYPE_SHIFT) | VG_LINETO_NVALS)
+#define _VG_D_BEZIERTO           ((NVG_BEZIERTO << VG_D_TYPE_SHIFT) | VG_BEZIERTO_NVALS)
+//
+// TODO: #define VG_ARCTO_ARGC
+//
+// #define VG_D_HORIZONTAL_SHIFT   4
+// #define VG_D_VERTICAL_SHIFT     5
+// #define VG_D_SMOOTH_SHIFT       6
+// #define VG_D_RELATIVE_SHIFT     7
+#define VG_D_HORIZONTAL         0b000000010000
+#define VG_D_VERTICAL           0b000000100000
+#define VG_D_RELATIVE           0b000001000000
+#define VG_D_CUBIC              0b000010000000
+#define VG_D_QUADRATIC          0b000100000000
+#define VG_D_SMOOTH             0b001000000000
+//
+#define VG_D_ARGC_MASK          0b0000000000001111
+#define VG_D_MOVETO             (_VG_D_MOVETO   | 2)
+#define VG_D_LINETO             (_VG_D_LINETO   | 2)
+#define VG_D_HLINETO            (_VG_D_LINETO   | 1 | VG_D_HORIZONTAL)
+#define VG_D_VLINETO            (_VG_D_LINETO   | 1 | VG_D_VERTICAL)
+#define VG_D_BEZIERTO           (_VG_D_BEZIERTO | 6 | VG_D_CUBIC)
+#define VG_D_SBEZIERTO          (_VG_D_BEZIERTO | 4 | VG_D_CUBIC | VG_D_SMOOTH)
+#define VG_D_QUADTO             (_VG_D_BEZIERTO | 4 | VG_D_QUADRATIC)
+#define VG_D_SQUADTO            (_VG_D_BEZIERTO | 2 | VG_D_QUADRATIC | VG_D_SMOOTH)
+#define VG_D_CLOSE              ((NVG_CLOSE << VG_D_TYPE_SHIFT) | (1 << VG_D_NVALS_SHIFT))
+#define VG_D_WINDING            ((NVG_WINDING << VG_D_TYPE_SHIFT) | (1 << VG_D_NVALS_SHIFT))
+//
+#define _VG_D_LOG(...)
+// #define _VG_D_LOG(...)           printf(__VA_ARGS__)
+#define _VG_D_LOG_COMMAND(ch)    printf("%c\n", ch + 32*(!!(comflag & VG_D_RELATIVE)))
+#define _VG_D_ERROR(...) { \
+        fprintf(stderr, __VA_ARGS__); \
+        return 1; \
+    }
 
+int vg_pathdata(vg_t* ctx, vg_pathdata_t buf)
+{
+    float* tf = _vg_get_transform(ctx);
+    float* argv;
+    int   argc = 0;
+    int   argi = 0;
+
+    int comflag = 0;
+    float x = 0.0;
+    float y = 0.0;
+    float cx = 0.0;
+    float cy = 0.0;
+
+    int comflag0 = 0;
+    float x0 = 0.0;
+    float y0 = 0.0;
+    float cx0 = 0.0;
+    float cy0 = 0.0;
+    int len = (int)buf[0] ;
+    int commands_len = (int)buf[1];
+    // if (len < 0)
+    //   _VG_D_ERROR("vg_pathdata invalid header[0] value: len\n")
+    // _VG_D_LOG("vg_pathdata len=%i commands_len=%i\n",len,commands_len);
+    int i = VG_PATHDATA_HEADER_LEN;
+    int idx = 0;
+    if (_vg_grow_commands_if_needed(ctx, len))
+        _VG_D_ERROR("vg_pathdata _vg_grow_commands_if_needed failed to grow\n")
+
+    float* commands = ctx->commands + ctx->ncommands;
+    ctx->ncommands += len - VG_PATHDATA_HEADER_LEN;
+
+    while (i < len) {
+        comflag0 = comflag;
+        x0 = x;
+        y0 = y;
+        cx0 = cx;
+        cy0 = cy;
+
+        argv = buf + i;
+        comflag = (int)argv[0];
+        argc = (comflag & VG_D_ARGC_MASK);
+
+        int nvals = (comflag & VG_D_NVALS_MASK) >> VG_D_NVALS_SHIFT;
+        float* vals = commands + idx;
+        vals[0] = (float)(comflag >> VG_D_TYPE_SHIFT);
+        _VG_D_LOG("  comflag=%i, i=%i, nvals=%i, argc=%i\n",comflag,i,nvals,argc);
+
+        i += 1 + argc;
+        idx += nvals;
+        cx = 0.0;
+        cy = 0.0;
+
+        // CLOSE || WINDING
+        if (nvals < 3)
+            continue;
+
+        bool not_horiz = 1 ^ (bool)(VG_D_HORIZONTAL & comflag);
+        bool not_verti = 1 ^ (bool)(VG_D_VERTICAL & comflag);
+        bool is_rel = (bool)(VG_D_RELATIVE & comflag);
+        float x0_rel = x0 * is_rel;
+        float y0_rel = y0 * is_rel;
+        x = x0_rel + argv[argc - not_horiz] * not_verti;
+        y = y0_rel + argv[argc] * not_horiz;
+
+        vals[nvals-2] = x;
+        vals[nvals-1] = y;
+
+        _VG_D_LOG("\tx%f,y%f\n",x,y);
+
+        // MOVETO || LINETO
+        if (nvals == 3) {
+            _VG_TRANSFORM_PT_AT(vals,1,tf)
+            continue;
+        }
+
+        // BEZIERTO
+        if (comflag & VG_D_CUBIC) {
+            switch ((bool)(comflag & VG_D_SMOOTH)) {
+                case false: {
+                    vals[1] = x0_rel + argv[1];
+                    vals[2] = y0_rel + argv[2];
+                    vals[3] = x0_rel + argv[3];
+                    vals[4] = y0_rel + argv[4];
+                    _VG_D_LOG("\tcubic: c1%f,%f  c2%f,%f\n",argv[1],argv[2], argv[3],argv[4]);
+                }   break;
+                case true: {
+                    bool prev_is_type = (bool)(comflag0 & VG_D_CUBIC);
+                    // start control point is reflection of previous (if cubic)
+                    vals[1] = x0 + (x0 - cx0) * prev_is_type;
+                    vals[2] = y0 + (y0 - cy0) * prev_is_type;
+                    // end control point
+                    vals[3] = x0_rel + argv[1];
+                    vals[4] = y0_rel + argv[2];
+                }   break;
+            }
+            cx = vals[3];
+            cy = vals[4];
+            _VG_D_LOG("\tcubic: c1%f,%f  c2%f,%f\n",vals[1],vals[2], vals[3],vals[4]);
+
+        }
+        else if (comflag & VG_D_QUADRATIC) {
+            switch ((bool)(comflag & VG_D_SMOOTH)) {
+                case false: {
+                    cx = x0_rel + argv[1];
+                    cy = y0_rel + argv[2];
+                }   break;
+                case true: {
+                    bool prev_is_type = (bool)(comflag0 & VG_D_QUADRATIC);
+                    // control point is reflection of previous (if quadratic)
+                    cx = x0 + (x0 - cx0) * prev_is_type;
+                    cy = y0 + (y0 - cy0) * prev_is_type;
+                }   break;
+            }
+            vals[1] = x0 + 2.0f/3.0f*(cx - x0);
+            vals[2] = y0 + 2.0f/3.0f*(cy - y0);
+            vals[3] = x + 2.0f/3.0f*(cx - x);
+            vals[4] = y + 2.0f/3.0f*(cy - y);
+        }
+        _VG_TRANSFORM_PT_AT(vals,1, tf)
+        _VG_TRANSFORM_PT_AT(vals,3, tf)
+        _VG_TRANSFORM_PT_AT(vals,5, tf)
+    }
+    _VG_D_LOG("done looping...\n");
+    ctx->commandx = x;
+    ctx->commandy = y;
+    // memcpy(&ctx->commands[ctx->ncommands], vals, nvals*sizeof(float));
+    return 0;
+}
+
+int vg_pathdata_parse_buf(const char* commandstring, int len, vg_pathdata_t* out)
+{
+    float argv[len]; // max number
+    int argi = VG_PATHDATA_HEADER_LEN; // 0: float count, 1: command count
+    int command_count = 0;
+
+    #define _VG_D_PARSE_SUCCESS { \
+        argv[0] = (float)argi; \
+        argv[1] = (float)command_count; \
+        _VG_D_LOG("\nfloat_count=%i, command_count=%i\n",argi,command_count); \
+        *out = malloc(argi*sizeof(float)); \
+        if (*out == NULL) _VG_D_ERROR("ERROR vg_pathdata cannot allocate for out buffer\n"); \
+        _VG_D_LOG("bufflen=%i\n",argi*sizeof(float)); \
+        memcpy(*out, argv, argi*sizeof(float)); \
+        _VG_D_LOG("\nfloat_count=%i, command_count=%i\n",(int)((*out)[0]),(int)((*out)[1])); \
+        return 0; \
+    }
+
+    int vals_offset = 0;
+    int comflag = 0;
+    int numc = 0;
+    // int argc = 0;
+    int i = 0;
+    while (i < len) {
+        char ch = commandstring[i];
+        while (ch <=',') { // skip whitespace
+            if (i == len)
+                _VG_D_PARSE_SUCCESS
+            ch = commandstring[++i];
+        }
+        if (ch <= '9') { // extract floats
+            if (numc == (comflag & VG_D_ARGC_MASK)) { // implicit command repeat
+                ++command_count;
+                argv[argi++] = (float)comflag;
+                numc = 0;
+                _VG_D_LOG("\n");
+            }
+            if (comflag == 0)
+                _VG_D_ERROR("ERROR vg_pathdata cannot start command with number\n");
+            const char* end;
+            float val = strtof(commandstring + i, &end);
+            i += end - (commandstring + i);
+
+            argv[argi++] = val;
+            numc++;
+
+            _VG_D_LOG("\t%f\n", argv[argi-1]);
+            continue;
+        }
+        if (numc != (comflag & VG_D_ARGC_MASK))
+            _VG_D_ERROR("ERROR vg_pathdata param count is %i, expects %i. ch='%c'\n",numc,(comflag & VG_D_ARGC_MASK), ch);
+        numc = 0;
+        comflag = 0;
+        if (ch >= 'a') { // lowercase == relative
+            comflag |= VG_D_RELATIVE;
+            ch -= 32; // force uppercase
+        }
+        ++command_count;
+        _VG_D_LOG_COMMAND(ch);
+        switch (ch) {
+            /*
+            IDEAS:
+                o,O circle
+                e,E ellipse
+                r,R rect
+                rrectv?
+            */
+            case 'M': { // moveto (dx,dy)+
+                comflag |= VG_D_MOVETO;
+            }   break;
+            case 'L': { // lineto (dx,dy)+
+                comflag |= VG_D_LINETO;
+            }   break;
+            case 'H': { // hlineto (dx)+
+                comflag |= VG_D_HLINETO;
+            }   break;
+            case 'V': { // vlineto (dy)+
+                comflag |= VG_D_VLINETO;
+            }   break;
+            case 'C': { // bezierto (dx1,dy1, dx2,dy2, dx,dy)+
+                comflag |= VG_D_BEZIERTO;
+            }   break;
+            case 'S': { // smooth bezierto (dx2,dy2, dx,dy)+
+                comflag |= VG_D_SBEZIERTO;
+            }   break;
+            case 'Z': { // closepath ()
+                comflag |= VG_D_CLOSE;
+            }   break;
+            case 'Q': { // quadto (dx1,dy1, dx,dy)+
+                comflag |= VG_D_QUADTO;
+            }   break;
+            case 'T': { // smooth quadto (dx,dy)+
+                comflag |= VG_D_SQUADTO;
+            }   break;
+            // case 'A': { // arcto (rx,ry, angle,arcflag,sweepflag, dx,dy)+
+            //     // comflag |= 7;
+            //     _VG_D_ERROR("arcto command WIP");
+            // }
+            default: _VG_D_ERROR("ERROR vg_pathdata unrecognized command : %c\n",ch);
+        }
+        i++;
+        _VG_D_LOG("  comflag=%i, argi=%i\n", comflag, argi);
+        argv[argi++] = (float)comflag;
+    }
+    _VG_D_PARSE_SUCCESS
+}
 
 #endif
 
