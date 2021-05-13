@@ -1,5 +1,6 @@
 
 
+
 #ifndef GFX_H_H
 #define GFX_H_H
 
@@ -243,8 +244,8 @@ uint64_t  gfx_get_timerfreq(void);
 
 void _gfx_init_time(void);
 
-#include "gfx/win.h"
-#include "gfx/vg.h"
+#include "./win.h"
+#include "./vg.h"
 
 int gfx_init()
 {

@@ -104,7 +104,7 @@ void ren_get_size(int* w, int*h);
 void ren_draw_rect(ren_rect_t rect, ren_color_t color);
 void ren_draw_text(const char* text, ren_vec2_t pos, ren_color_t color);
 void ren_draw_icon(int id, ren_rect_t rect, ren_color_t color);
-int ren_get_text_width(const char* text, int len);
+float ren_get_text_width(const char* text, int len);
 float ren_get_text_height(void);
 void ren_set_clip_rect(ren_rect_t rect);
 void ren_clear(ren_color_t color);
@@ -270,10 +270,10 @@ void ren_init(void)
         // return void;
         exit(1);
     }
+    win_set_size(ctx.win, 1440, 1080);
     ctx.vg = win_create_vg(ctx.win, VG_VSYNC | VG_ACCEL
         // |VG_TRANSPARENT
         );
-    // win_set_size(ctx.win, 720, 720);
     win_set_pos(ctx.win, WINPOS_CENTER, WINPOS_CENTER);
     win_show(ctx.win);
     // ctx = malloc(sizeof(ren_ctx_t));
@@ -545,14 +545,15 @@ void ren_draw_icon(int id, ren_rect_t rect, ren_color_t color)
         nvgText(vg,x,y,&id,NULL);
 }
 
-int ren_get_text_width(const char* text, int len)
+float ren_get_text_width(const char* text, int len)
 {
     if (len == 0)
         return 0;
     int l = strlen(text);
     if (len == -1 || len >= l)
         len = l;
-    return (int)nvgTextBounds(ctx.vg, 0, 0, text, text+len, NULL);
+    float w = nvgTextBounds(ctx.vg, 0, 0, text, text+len, NULL);
+    return w;
 }
 
 float ren_get_text_height(void)
