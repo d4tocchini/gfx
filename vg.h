@@ -254,26 +254,31 @@ vg_t* win_create_vg(win_t* win, int flags)
         SDL_GL_MakeCurrent(win, context);
 
         if (flags & VG_VSYNC) {
+            /* NOTE: no longer a mac issue, properly handled by SDL anyway
+                see: https://github.com/floooh/sokol/pull/488
             #ifdef GFX_MAC
-                // CGLCPSwapInterval broke in OSX 10.14 and it seems Apple is not interested in fixing
-                // it as OpenGL is now deprecated and Metal solves this differently.
-                // Following SDLs example we're working around this using DisplayLink
-                // When vsync is enabled we set a flag "waiting_for_vsync" to true.
-                // This flag is set to false when DisplayLink informs us our display is about to refresh.
-                /*	CGLContextObj ctx = CGLGetCurrentContext();
-                                if (ctx) {
-                                        GLint swapInterval = p_enable ? 1 : 0;
-                                        CGLSetParameter(ctx, kCGLCPSwapInterval, &swapInterval);
-                                }*/
-                ///TODO Maybe pause/unpause display link?
-
+                // // https://github.com/godotengine/godot/commit/0ce44336866582ffa132fb440163066ad66b18c1
+                // // https://github.com/godotengine/godot/tree/master/platform/osx
+                // // https://community.khronos.org/t/mac-vbl/53947/4
+                // // The best of both worlds : “vsync if framerate above display refresh, no vsync if below” have a look here :
+                // // http://www.opengl.org/discussion_boards/ubbthreads.php?ubb=showflat&Number=196733#Post196733
+                // // That is what most modern games seem to do, both for PC and consoles.
+                // // ...
+                // // Seriously, don’t do that. Use CoreVideo or CGLFlushBuffer to block until the appropriate moment.
+                // // CGLCPSwapInterval broke in OSX 10.14 and it seems Apple is not interested in fixing
+                // // it as OpenGL is now deprecated and Metal solves this differently.
+                // // Following SDLs example we're working around this using DisplayLink
+                // // When vsync is enabled we set a flag "waiting_for_vsync" to true.
+                // // This flag is set to false when DisplayLink informs us our display is about to refresh.
+                // CGLContextObj ctx = CGLGetCurrentContext();
+                //     if (ctx) {
+                //             GLint swapInterval = p_enable ? 1 : 0;
+                //             CGLSetParameter(ctx, kCGLCPSwapInterval, &swapInterval);
+                // ///TODO Maybe pause/unpause display link?
                 GLint vblSync = 1;
                 [(__bridge NSOpenGLContext*)context setValues:&vblSync forParameter:NSOpenGLCPSwapInterval];
-
-                // }
             #endif
-
-
+            */
             if (SDL_GL_SetSwapInterval(-1) == -1)
                 if (SDL_GL_SetSwapInterval(1) == -1)
                     printf("Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError());

@@ -15,8 +15,8 @@
     typedef mu_Font ren_font_t;
 #else
     typedef unsigned ren_id_t;
-    typedef struct { int x, y; } ren_vec2_t;
-    typedef struct { int x, y, w, h; } ren_rect_t;
+    typedef struct { float x, y; } ren_vec2_t;
+    typedef struct { float x, y, w, h; } ren_rect_t;
     typedef struct { unsigned char r, g, b, a; } ren_color_t;
     typedef void* ren_font_t;
 #endif
@@ -262,7 +262,7 @@ ren_ctx_t* ren_init_ctx(void)
 void ren_init(void)
 {
     gfx_init();
-    ctx.win = gfx_create_win(WIN_RESIZEABLE
+    ctx.win = win_create(WIN_RESIZEABLE
         // |WIN_TRANSPARENT
         );
     if (!(ctx.win)) {
@@ -271,7 +271,9 @@ void ren_init(void)
         exit(1);
     }
     win_set_size(ctx.win, 1440, 1080);
-    ctx.vg = win_create_vg(ctx.win, VG_VSYNC | VG_ACCEL
+    ctx.vg = win_create_vg(ctx.win,
+        VG_ACCEL
+        |VG_VSYNC
         // |VG_TRANSPARENT
         );
     win_set_pos(ctx.win, WINPOS_CENTER, WINPOS_CENTER);
@@ -453,7 +455,6 @@ void ren_draw_text(const char* text, ren_vec2_t pos, ren_color_t color)
     // nvgTextBox(vg, pos.x, pos.y);
 
     nvgText(vg, pos.x, pos.y, text, text+l);
-
 }
 
 
