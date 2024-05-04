@@ -162,7 +162,7 @@ uint64_t  gfx_get_timerfreq(void);
 
 // ============================================================
 #else
-    #include "./src/gfx.c"
+    #include "gfx/src/gfx.c" // D4 TODO?
 #endif
 
 #endif
