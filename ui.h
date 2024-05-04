@@ -1,26 +1,26 @@
-#ifndef GFX_REN_H
-#define GFX_REN_H
+#ifndef GFX_UI_H
+#define GFX_UI_H
 
-
-#define GFX_REN
+#define GFX_UI
 
 #define REN_DEFAULT_FONT_SIZE 11.8f
 
-#if defined(REN_MICROUI)
-    #include "microui/src/microui.h"
-    typedef mu_Id ren_id_t;
-    typedef mu_Vec2 ren_vec2_t;
-    typedef mu_Rect ren_rect_t;
-    typedef mu_Color ren_color_t;
-    typedef mu_Font ren_font_t;
-#else
+// #if defined(REN_MICROUI)
+//     #include "microui/src/microui.h"
+//     typedef mu_Id ren_id_t;
+//     typedef mu_Vec2 ren_vec2_t;
+//     typedef mu_Rect ren_rect_t;
+//     typedef mu_Color ren_color_t;
+//     typedef mu_Font ren_font_t;
+// #else
     typedef unsigned ren_id_t;
     typedef struct { float x, y; } ren_vec2_t;
     typedef struct { float x, y, w, h; } ren_rect_t;
     typedef struct { unsigned char r, g, b, a; } ren_color_t;
     typedef void* ren_font_t;
-#endif
-typedef struct ren_ctx_t {
+// #endif
+
+typedef struct ui_ctx_t {
     #if defined(REN_MICROUI)
         mu_Context mu;
     #endif
@@ -33,9 +33,8 @@ typedef struct ren_ctx_t {
     int mouse_dx, mouse_dy; unsigned int mouse_t0;
     int wheel_dx, wheel_dy; unsigned int wheel_t0;
     float px_ratio;
-} ren_ctx_t;
+} ui_ctx_t;
 
-static ren_ctx_t ctx;
 enum {
   REN_KEY_SHIFT        = (1 << 0),
   REN_KEY_CTRL         = (1 << 1),
@@ -94,7 +93,7 @@ static int REN_FRAME_MS = 16;
 #define REN_DELAY_FRAME()   REN_SLEEP(REN_FRAME_MS);
 
 void ren_init(void);
-ren_ctx_t* ren_init_ctx(void);
+ui_ctx_t* ren_init_ctx(void);
 int ren_INPUT(void);
 void ren_BEGIN(void);
 void ren_DRAW(void);
@@ -218,8 +217,8 @@ int ren_onresize(void)
 //
 
 // coloren_t clear = {0.f,0.f,0.f,0.f};
-// } ren_ctx_t;
-// static ren_ctx_t ren_ctx;
+// } ui_ctx_t;
+// static ui_ctx_t ren_ctx;
 
 // #define GLUE_HELPER(x, y) x##y
 // #define GLUE(x, y) GLUE_HELPER(x, y)
@@ -253,7 +252,7 @@ int ren_onresize(void)
     }
 #endif
 
-ren_ctx_t* ren_init_ctx(void)
+ui_ctx_t* ren_init_ctx(void)
 {
     ren_init();
     return &ctx;
@@ -278,7 +277,7 @@ void ren_init(void)
         );
     win_set_pos(ctx.win, WINPOS_CENTER, WINPOS_CENTER);
     win_show(ctx.win);
-    // ctx = malloc(sizeof(ren_ctx_t));
+    // ctx = malloc(sizeof(ui_ctx_t));
 
     #if defined(REN_MICROUI)
         mu_init(&ctx.mu);
